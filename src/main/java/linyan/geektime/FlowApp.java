@@ -33,13 +33,15 @@ public class FlowApp
         job.setInputFormatClass(TextInputFormat.class);
         job.setOutputFormatClass(TextOutputFormat.class);
 
-        //指定处理数据的位置
+        // 指定job的输入原始文件所在目录
         FileInputFormat.setInputPaths(job, "hdfs://jikehadoop01:8020/user/student/linyan/HTTP_20130313143750.dat");
-        //指定处理完成之后的结果所保存的位置
-        FileOutputFormat.setOutputPath(job, new Path("hdfs://jikehadoop01:8020/user/student/linyan/output/"));
+        // FileInputFormat.setInputPaths(job, new Path(args[0]));
+        //指定job完成后的结果文件所在目录
+        //FileOutputFormat.setOutputPath(job, new Path("hdfs://jikehadoop01:8020/user/student/linyan/output/"));
+        FileOutputFormat.setOutputPath(job, new Path(args[0])); //Path(args[1])
         //向yarn集群提交这个job
         boolean res = job.waitForCompletion(true);
-        System.exit(res?0:1);
+        System.exit(res ? 0 : 1);
 
     }
 }

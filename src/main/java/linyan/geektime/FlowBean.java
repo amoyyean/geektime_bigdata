@@ -1,17 +1,17 @@
 package linyan.geektime;
 
-import org.apache.hadoop.io.Writable;
-//import org.apache.hadoop.io.WritableComparable;
+//import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
 // 1 实现WritableComparable接口
-//public class FlowBean implements WritableComparable{}
+public class FlowBean implements WritableComparable<FlowBean>{
 
-// 1 实现writable接口
-public class FlowBean implements Writable {
+// 1.1 实现writable接口
+//public class FlowBean implements Writable {
     //上传流量
     private long upFlow;
     //下载流量
@@ -71,12 +71,12 @@ public class FlowBean implements Writable {
      */
     @Override
     public void write(DataOutput out) throws IOException {
-        //out.writeLong(upFlow);
-        out.writeLong(this.getUpFlow());
-        //out.writeLong(downFlow);
-        out.writeLong(this.getDownFlow());
-        //out.writeLong(sumFlow);
-        out.writeLong(this.getSumFlow());
+        out.writeLong(upFlow);
+        //out.writeLong(this.getUpFlow());
+        out.writeLong(downFlow);
+        //out.writeLong(this.getDownFlow());
+        out.writeLong(sumFlow);
+        //out.writeLong(this.getSumFlow());
     }
 
     /**
@@ -95,6 +95,11 @@ public class FlowBean implements Writable {
     @Override
     public String toString() {
         return upFlow + "\t" + downFlow + "\t" + sumFlow;
+    }
+    @Override
+    public int compareTo(FlowBean o) {
+        // 倒序排列，从大到小
+        return this.sumFlow > o.getSumFlow() ? -1 : 1;
     }
 }
 
