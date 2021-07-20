@@ -13,28 +13,29 @@ public class FindNameServiceImpl implements FindNameService {
     }
     //实现SayHi方法
     @Override
-    public String sayHi(String name) {
-        System.out.println("名字：" + name);
-        return "Hi, " + name;
+    public String sayHi(String studentId) {
+        System.out.println("Student ID：" + studentId);
+        //System.out.println("main()获取到的参数是："+System.getProperty("studentId"));
+        return "Hi, " + studentId;
     }
     //实现findName方法
     @Override
-    public String findName(long studentId) {
-        if (studentId == 20210123456789L) {
+    public String findName(String studentId) {
+        if (studentId.equals("20210123456789")) {
             System.out.println("心心");
             return "心心";
         } else {
             System.out.println("请输入正确的学号");
             return null;
         }
-/*        switch (studentId) {
-            case 2021012345:
-                System.out.println("心心");
-                return "心心";
-            default:
-                System.out.println("请输入正确的学号");
-                return null;
-}*/
+//        switch (studentId) {
+//            case "20210123456789":
+//                System.out.println("心心");
+//                return "心心";
+//            default:
+//                System.out.println("请输入正确的学号");
+//                return null;
+//}
     }
     //返回版本号
     @Override

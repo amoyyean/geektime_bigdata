@@ -15,9 +15,11 @@ public class FindNameClientDriver {
         FindNameService findNameServiceProxy = RPC.getProxy(FindNameService.class, FindNameService.versionID, address, new Configuration());
         int result_1 = findNameServiceProxy.add(1, 2);
         System.out.println(result_1);
-        String result_2 = findNameServiceProxy.sayHi("心心");
+        System.out.println(System.getProperty("studentId"));
+        String result_2 = findNameServiceProxy.sayHi(System.getProperty("studentId"));
         System.out.println(result_2);
-        String result_3 = findNameServiceProxy.findName(20210123456789L);
+        System.out.println(args[0]);
+        String result_3 = findNameServiceProxy.findName(args[0]);
         System.out.println(result_3);
     }
 }
