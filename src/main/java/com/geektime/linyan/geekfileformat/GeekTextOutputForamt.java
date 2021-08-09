@@ -74,8 +74,8 @@ public class GeekTextOutputForamt <K extends WritableComparable, V extends Writa
             boolean firstWord = true;
 
             StringBuilder sb = new StringBuilder();
-            // Replace all punctuation and split
-            String[] words = ((Text) w).toString().replaceAll("\\p{P}", "").split("\\s+");
+            // Split
+            String[] words = ((Text) w).toString().split("\\s+");
             for (String word: words) {
                 // Count valid words
                 if (validateWord(word)) {
