@@ -161,7 +161,7 @@ EMR上精确的Distinct Count查询结果也为49，两者一致。
 
 本地环境的实现选项1是下载Presto Github源码，本地没有Hive环境，可能还需要安装和配置。选项2是使用Docker，不确定这些Docker的Container是否可以自己Create Schema和Table。
 
-EMR的事项可以参考[E-MapReduce>EMR开发指南>组件操作指南>Presto>使用JDBC](https://help.aliyun.com/document_detail/108859.html)。可以把‘String url = "jdbc:presto://emr-header-1:9090/hive/default";’中的相应内容换成‘jdbc:presto://106.15.194.185:9090/hive/default‘，通过Properties对象或URL传入用户名和密码。
+EMR的事项可以参考[E-MapReduce>EMR开发指南>组件操作指南>Presto>使用JDBC](https://help.aliyun.com/document_detail/108859.html) 和Presto 338官方文档[Client JDBC Driver](https://trino.io/docs/338/installation/jdbc.html)。可以把‘String url = "jdbc:presto://emr-header-1:9090/hive/default";’中的相应内容换成‘jdbc:presto://106.15.194.185:9090/hive/default‘，通过Properties对象或URL传入用户名和密码。
 
 具体实现和调试之后有空尝试。
 
