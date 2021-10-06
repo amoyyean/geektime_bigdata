@@ -157,9 +157,11 @@ EMR上精确的Distinct Count查询结果也为49，两者一致。
 
 ### 问题3: 学习使用Presto-Jdbc库连接docker或e-mapreduce环境，重复问题2的查询。（选做）
 
-现在判断解决方法是把HyperLogLog的生成和查询语句写在代码内，调用Java代码实现。如果题意理解有偏差，可以反馈。谢谢。
+我判断解决方案是把HyperLogLog的生成和查询语句写在代码内，调用Java代码实现。如果题意理解有偏差，可以反馈。谢谢。
 
-本地环境的搭建需要查询其实现方式，从零配置，对我来说比较费时间。
+本地环境的实现选项1是下载Presto Github源码，本地没有Hive环境，可能还需要安装和配置。选项2是使用Docker，不确定这些Docker的Container是否可以自己Create Schema和Table。
 
-EMR还不确定如何用SSH或其他方式可以调用本地编写好的JAR包。如果有参考可以之后试一试。
+EMR的事项可以参考[E-MapReduce>EMR开发指南>组件操作指南>Presto>使用JDBC](https://help.aliyun.com/document_detail/108859.html)。可以把‘String url = "jdbc:presto://emr-header-1:9090/hive/default";’中的相应内容换成‘jdbc:presto://106.15.194.185:9090/hive/default‘，通过Properties对象或URL传入用户名和密码。
+
+具体实现和调试之后有空尝试。
 
