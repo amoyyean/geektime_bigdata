@@ -29,7 +29,7 @@ Job运行时的主页面
 Job页面
 ![Flink_Running_Job](images/Flink_Running_Job.png)
 
-Docker修改后重新build时的主页面
+Docker关闭后修改代码再重新build时的主页面
 ![Flink_Dashboard_2](images/Flink_Dashboard_2.png)
 
 **MySQL执行结果如下**：
