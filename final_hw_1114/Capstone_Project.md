@@ -77,6 +77,8 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 2. 该 SQL 用到了哪些优化规则（ optimizer rules )
 3. 请各用不少于 200 字描述其中的两条优化规则
 
+0829 02:06:10
+
 *帮助文档: 如何运行该SQL*
 
 *1. 从 github 下载 TPCDS 数据生成器*
@@ -112,7 +114,7 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 *5. 执行 SQL*
 
 ```shell
-> ./spark-3.1.1-bin-hadoop2.7/bin/spark-submit --class org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark --jars spark-core_2.12-3.1.1-tests.jar, spark-catalyst_2.12-3.1.1-tests.jar, spark sql_2.12-3.1.1-tests.jar --data-location tpcds-data-1g --query-filter "q73"
+> ./spark-3.1.1-bin-hadoop2.7/bin/spark-submit --class org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark --jars spark-core_2.12-3.1.1-tests.jar,spark-catalyst_2.12-3.1.1-tests.jar spark sql_2.12-3.1.1-tests.jar --data-location tpcds-data-1g --query-filter "q73"
 ```
 ## 题目二: 架构设计题
 
