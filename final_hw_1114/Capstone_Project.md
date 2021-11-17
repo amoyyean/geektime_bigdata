@@ -7,8 +7,6 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 2. 该 SQL 用到了哪些优化规则（ optimizer rules )
 3. 请各用不少于 200 字描述其中的两条优化规则
 
-0829 02:06:10
-
 *帮助文档: 如何运行该SQL*
 
 *1. 从 github 下载 TPCDS 数据生成器*
