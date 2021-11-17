@@ -1,73 +1,3 @@
-# 作业3 Insert命令自动合并小文件
-
-- 我们讲过AQE可以自动调整reducer的个数，但是正常跑Insert命令不会自动合并小文件，例如
-```sql
-insert into t1 select * from t2;
-  ```
-- 请加一条物理规则（Strategy），让Insert命令自动进行小文件合并(repartition)。（不用考虑bucket表，不用考虑Hive表）
-
-## 代码参考
-
-```scala
-object RepartitionForInsertion extends Rule[SparkPlan] {
-override def apply(plan: SparkPlan): SparkPlan = {
-plan transformDown {
-case i @ InsertIntoDataSourceExec(child, _, _, partitionColumns, _)
-...
-val newChild = ...
-i.withNewChildren(newChild :: Nil)
-}
-}
-}
-```
-
-## 自己的解答
-
-
-### Logical Plan的修改方法
-
-可以参考[MyInsertOptimizerExtension](https://github.com/amoyyean/SparkMyOptimizerExtension/blob/master/src/main/scala/com/geektime/linyan/MyInsertOptimizerExtension.scala)和[RepartitionForInsertion](https://github.com/amoyyean/SparkMyOptimizerExtension/blob/master/src/main/scala/com/geektime/linyan/RepartitionForInsertion.scala)中的代码。
-
-
-### Spark Plan的修改方法
-
-生成1个SparkMyStrategyExtension.scala文件，内容如下
-
-```scala
-package com.geektime.linyan
-
-import org.apache.spark.sql.SparkSessionExtensions
-
-class SparkMyStrategyExtension extends (SparkSessionExtensions => Unit) {
-  override def apply(extensions: SparkSessionExtensions): Unit = {
-    extensions.injectPlannerStrategy { session =>
-      RepartitionForInsertion(session)
-    }
-  }
-}
-```
-
-生成1个RepartitionForInsertion.scala文件，内容如下
-
-```scala
-package com.geektime.linyan
-
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.{CoalesceExec, SparkPlan}
-
-object RepartitionForInsertion extends Rule[SparkPlan] {
-override def apply(plan: SparkPlan): SparkPlan = {
-plan transformDown {
-case d: DataWritingCommand =>
-DataWritingCommandExec(d, planLater(plan))
-case i: InsertIntoDatasource => i.withNewChildren(CoalesceExec(1, planLater(plan)))
-}
-}
-}
-```
-
----
-
 ## 题目一: 分析一条 TPCDS SQL (请基于 Spark 3.1.1 版本解答)
 
 SQL从中任意选择一条：
@@ -100,8 +30,18 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 ```shell
 > mkdir -p tpcds-data-1g
 > export SPARK_HOME=./spark-3.1.1-bin-hadoop2.7
+> export SPARK_HOME=/Users/winchester/git/spark-tpcds-datagen/spark-3.1.1-bin-hadoop2.7
 > ./bin/dsdgen --output-location tpcds-data-1g
 ```
+
+本地环境直接运行上面命令时我遇到connection refused的问题。把HADOOP集群启动起来不会有connection refused的问题，但生成数据时会有别的错误。后来把bash_profile里面所有的HADOOP变量都unset了，之前尝试只命令行 unset 1个HADOOP_HOME没解决问题。中间还重新格式化了namenode。
+
+一开始的错误提示和Hadoop没启动本地集群或者下面描述的错误是一样的。启动了本地Hadoop集群就没这个错误，但会有别的错误。推测dsdgen命令读到了我的某些环境变量，尝试去用hadoop集群模式运行导致了别的学员没遇到的错误。还未找到dsdgen命令文件中SPARK_CONF[@]和ARGS[@]对应什么。
+
+参考文章:
+https://blog.csdn.net/weixin_45468845/article/details/105750062
+https://stackoverflow.com/questions/18322102/hadoop-connection-refused-on-port-9000
+
 
 *4. 下载三个 test jar 并放到当前目录*
 
@@ -116,9 +56,121 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 ```shell
 > ./spark-3.1.1-bin-hadoop2.7/bin/spark-submit --class org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark --jars spark-core_2.12-3.1.1-tests.jar,spark-catalyst_2.12-3.1.1-tests.jar spark sql_2.12-3.1.1-tests.jar --data-location tpcds-data-1g --query-filter "q73"
 ```
+
+```shell
+nohup ./spark-3.1.1-bin-hadoop2.7/bin/spark-submit \
+--conf spark.sql.planChangeLog.level=WARN \
+--class org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark \
+--jars spark-core_2.12-3.1.1-tests.jar,spark-catalyst_2.12-3.1.1-tests.jar \
+spark-sql_2.12-3.1.1-tests.jar \
+--data-location tpcds-data-1g --query-filter "q73"\
+> sql_test_output_n_error.log 2>&1 &
+```
+
+```shell
+nohup ./spark-3.1.1-bin-hadoop2.7/bin/spark-submit \
+-c spark.sql.planChangeLog.level=WARN \
+--class org.apache.spark.sql.execution.benchmark.TPCDSQueryBenchmark \
+--jars spark-core_2.12-3.1.1-tests.jar,spark-catalyst_2.12-3.1.1-tests.jar \
+spark-sql_2.12-3.1.1-tests.jar \
+--data-location tpcds-data-1g --query-filter "q73"\
+> sql_test_output_n_error.log 2>&1 &
+```
+
+q73.sql的语句如下:
+```sql
+SELECT
+  c_last_name,
+  c_first_name,
+  c_salutation,
+  c_preferred_cust_flag,
+  ss_ticket_number,
+  cnt
+FROM
+  (SELECT
+    ss_ticket_number,
+    ss_customer_sk,
+    count(*) cnt
+  FROM store_sales, date_dim, store, household_demographics
+  WHERE store_sales.ss_sold_date_sk = date_dim.d_date_sk
+    AND store_sales.ss_store_sk = store.s_store_sk
+    AND store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
+    AND date_dim.d_dom BETWEEN 1 AND 2
+    AND (household_demographics.hd_buy_potential = '>10000' OR
+    household_demographics.hd_buy_potential = 'unknown')
+    AND household_demographics.hd_vehicle_count > 0
+    AND CASE WHEN household_demographics.hd_vehicle_count > 0
+    THEN
+      household_demographics.hd_dep_count / household_demographics.hd_vehicle_count
+        ELSE NULL END > 1
+    AND date_dim.d_year IN (1999, 1999 + 1, 1999 + 2)
+    AND store.s_county IN ('Williamson County', 'Franklin Parish', 'Bronx County', 'Orange County')
+  GROUP BY ss_ticket_number, ss_customer_sk) dj, customer
+WHERE ss_customer_sk = c_customer_sk
+  AND cnt BETWEEN 1 AND 5
+ORDER BY cnt DESC
+```
+
+### 上面通过spark-submit调用q73的SQL的执行图如下:
+
+![tpcds_sql_73_outcome](images/tpcds_sql_73_outcome.png)
+
+### 该 SQL 用到的优化规则(optimizer rules)
+
+1. Applying Rule org.apache.spark.sql.catalyst.optimizer.ColumnPruning 列剪枝
+2. Applying Rule org.apache.spark.sql.catalyst.optimizer.ReorderJoin Join 顺序优化
+3. Applying Rule org.apache.spark.sql.catalyst.optimizer.PushDownPredicates 谓词下推
+4. Applying Rule org.apache.spark.sql.catalyst.optimizer.NullPropagation  Null 提取
+5. Applying Rule org.apache.spark.sql.catalyst.optimizer.ConstantFolding 常量累加
+6. Applying Rule org.apache.spark.sql.catalyst.optimizer.InferFiltersFromConstraints 约束条件提取
+7. Applying Rule org.apache.spark.sql.catalyst.optimizer.RewritePredicateSubquery 将特定子查询为此逻辑转换为left-semi/anti join
+
+
+#### PushDownPredicate 描述
+
+PushDownPredicate规则主要将过滤条件尽可能地下推到离数据源端更近。
+
+如q73 SQL中，原来的语法树是先对 store_sales 和 store 做 join，之后再用 store.s_county IN ('Williamson County', 'Franklin Parish', 'Bronx County', 'Orange County')对 join 的结果进行过滤。join算子大部分情况需要shuffle，网络走一遍比较耗时，耗时长度和两个 join 表的大小有关。这条规则是为了减少参与 join 的表的大小，降低 join 算子处理时间。经过这个规则优化后原来 join 的条件 从((ss_store_sk#1161 = s_store_sk#666) AND s_county#689 IN (Williamson County,Franklin Parish,Bronx County,Orange County))变成了ss_store_sk#1161 = s_store_sk#666 而 store.s_county 的s_county#689 IN (Williamson County,Franklin Parish,Bronx County,Orange County) 条件下推到 join之前，目测能做到扫描 store 表Relation的hdfs数据的时候就对数据进行了过滤。当底层Relation为parquet等支持Predictate PushDown的存储格式时，可以做data skipping则会继续下推。我们可以直接跳过整个记录或者整个块，这样极大的提高了 Job 的性能并且减少了不必要的开销。谓词下推只能作用于deterministic的判断。
+
+#### ConstantFolding 描述
+
+常量累加就是把一些常量累加的条件用累加的结果代替，优化后不需要每次使用这个条件还需要再执行常量相加的操作。
+
+如q73 SQL中，原来语法树里的date_dim.d_year IN (1999, 1999 + 1, 1999 + 2)d_year#335 IN (1999,(1999 + 1),(1999 + 2)))变成了d_year#335 IN (1999,2000,2001))
+没有进行优化前，每一条结果Filter都需要执行一次1991+1和1992+2的CPU操作，然后再提供给d_year进行过滤，如果关联的表数据记录多，即使简单的常量相加也会带来很多的CPU操作。常量算子合并减少了不必要的重复计算量，提升计算速度。
+
 ## 题目二: 架构设计题
 
 你是某互联网公司的大数据平台架构师，请设计一套基于 Lambda 架构的数据平台架构，要求尽可能多的把课程中涉及的组件添加到该架构图中。并描述 Lambda 架构的优缺点，要求不少于 300 字。
+
+Lambda架构有如下优点。
+
+1. 容错性
+实时计算层中处理的数据也不断写入离线批处理层，当批处理层中重新计算的数据集包含了实时计算层处理的数据集后，当前的实时数据层的视图数据就可以丢弃，实时数据层处理中引入的错误在批处理重新计算时可以得到修正。这点可以理解成是最终一致性的体现。
+
+2. 复杂性隔离
+批处理层处理的是离线数据，可以很好的掌控。实时处理层采用增量算法处理实时数据，复杂性一般比批处理层要高。通过分离这2种计算，把复杂性隔离到实时计算层，可以很好的提高整个系统的鲁棒性和可靠性。
+
+3. 实时计算成本可控
+对低延时要求的采用实时计算，其余的采用错峰集中资源的大批量计算，总体成本更容易控制。
+
+Lambda架构有如下缺点。
+
+1. 开发和维护的复杂性
+
+在两个不同的引擎中对同样的业务逻辑进行两次编程：一次为批量计算的ETL系统，一次为流式计算的Streaming系统。针对同一个业务问题产生了两个代码库，各有不同的漏洞。开发维护的成本更高。
+
+2. 计算口径不一致
+批量和实时计算用的是2套计算框架和计算程序，会出现T天看T-1的数据发生变化的情况。
+
+3. 资源消耗大
+
+需要维护2套计算和存储资源，资源消耗更大
+
+4. 数据联通消耗更大
+
+实时数据利用批量数据在一些情况下会需要更多的中间过程和存储
+
 
 ## 题目三 简答题（三选一）
 
@@ -128,43 +180,28 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 
 ### C. 简述 Flink SQL 的工作原理 要求不少于 300 字
 
-- 写出去再读回来合并
-  * 优点：控制写时的文件个数
-  * 缺点：小文件还是产生了，读1次小文件再写1次
-  * 助教讲授时说这个方法类似第2题 Compact Table 的情况，会用到 repartition
 
-- 写出去时合并1
-  * 根据某个 key 做 distribute by , 等于加了 shuffle
-  * 缺点：如果上面的操作也有shuffle, key 不一致时可能造成两次 exchange
+#### Spark Shuffle 的工作原理
 
-- 写出去时合并2
-  * 在物理计划里判断上次(助教讲课时改成上游或上面)的物理计划
-  * 非 partition 表，可以加 round robin partition
-  * 是 partition 表但没有 partition 条件，可以加 hash partition
-  * 助教讲课时提到还有1种情况是 partition 表，partition 条件是上游 partition 条件(1027课程里是上游，即child计划HashPartitioning的exs的子集)，可以不用加 partition
-  * 我的理解有上游的原因是因为下面的sql命令select * from t2可以是一个复杂的sql select查询，里面可能有多层包含不同 partition 的物理执行计划
-  ```sql
-  insert into t1 select * from t2;
-  ```  
-  * 助教讲授时说这个方法是老师在 ebay 的优化方案
+Shuffle 过程是将 Map 端获得的数据使用分区器进行划分，并将数据发送给对应的 Reducer 的过程。
 
-参考文章：
-1. [Apache Hudi如何智能处理小文件问题](https://www.cnblogs.com/leesf456/p/14642991.html)。助教说由于太复杂未尝试Hudi的解决方法
+Shuffle作为处理连接map端和reduce端的枢纽，其shuffle的性能高低直接影响了整个程序的性能和吞吐量。map端为shuffle Write，reduce端为shuffle read。spark的shuffle分为两种实现，分别为HashShuffle和SortShuffle。
+
+HashShuffle分为普通机制和合并机制
+
+1. 普通机制
+
+2. 合并机制
+
+SortShuffle分为普通机制和bypass机制。
+
+bypass机制条件
+
+1) shuffle map task数量小于spark.shuffle.sort.bypassMergeThreshold参数的值。
+2) 不是聚合类的shuffle算子（比如reduceByKey）
+
+在Spark 1.2以前，默认的shuffle计算引擎是HashShuffleManager，在Spark 1.2以后的版本中，默认的ShuffleManager改成了SortShuffleManager。
+
+SortShuffleManager相较于HashShuffleManager来说，有了一定的改进。
 
 ---
-
-## 老师在 eBay INSERT INTO 自动合并小文件及写入数据时自动合并小文件的方法
-
-代码可以参考 2021/10/27 课程 Delta Lake详解（下）01:21:32到01:33:55的视频和课件 17DeltaLake[1024带笔记]-极客时间训练营 的第80到83页的内容
-另外简要的实现方案可以参考 2021/10/27 课程 Delta Lake详解（下）01:53:25到02:00:00的视频
-
-运行和结果如下
-
-![17DeltaLake_80页_Resolving_Small_Files_Problem](17DeltaLake_80页_Resolving_Small_Files_Problem.png)
-
-![17DeltaLake_81页_Auto_Resolving_Small_Files_Problem](17DeltaLake_81页_Auto_Resolving_Small_Files_Problem.png)
-
-![17DeltaLake_82页_Auto_Resolving_Small_Files_Problem](17DeltaLake_82页_Auto_Resolving_Small_Files_Problem.png)
-
-![17DeltaLake_81页_Auto_Resolving_Small_Files_Problem](17DeltaLake_83页_Auto_Resolving_Small_Files_Problem.png)
-
