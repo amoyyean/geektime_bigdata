@@ -128,18 +128,33 @@ ORDER BY cnt DESC
 
 PushDownPredicate规则主要将过滤条件尽可能地下推到离数据源端更近。
 
-如q73 SQL中，原来的语法树是先对 store_sales 和 store 做 join，之后再用 store.s_county IN ('Williamson County', 'Franklin Parish', 'Bronx County', 'Orange County')对 join 的结果进行过滤。join算子大部分情况需要shuffle，网络走一遍比较耗时，耗时长度和两个 join 表的大小有关。这条规则是为了减少参与 join 的表的大小，降低 join 算子处理时间。经过这个规则优化后原来 join 的条件 从((ss_store_sk#1161 = s_store_sk#666) AND s_county#689 IN (Williamson County,Franklin Parish,Bronx County,Orange County))变成了ss_store_sk#1161 = s_store_sk#666 而 store.s_county 的s_county#689 IN (Williamson County,Franklin Parish,Bronx County,Orange County) 条件下推到 join之前，目测能做到扫描 store 表Relation的hdfs数据的时候就对数据进行了过滤。当底层Relation为parquet等支持Predictate PushDown的存储格式时，可以做data skipping则会继续下推。我们可以直接跳过整个记录或者整个块，这样极大的提高了 Job 的性能并且减少了不必要的开销。谓词下推只能作用于deterministic的判断。
+如q73 SQL中，原来的语法树是先对 store_sales 和 store 做 join，之后再用 store.s_county IN ('Williamson County', 'Franklin Parish', 'Bronx County', 'Orange County')对 join 的结果进行过滤。
+
+join算子大部分情况需要shuffle，网络走一遍比较耗时，耗时长度和两个 join 表的大小有关。这条规则是为了减少参与 join 的表的数据量，降低 join 算子处理时间。经过这个规则优化后原来 join 的条件 从((ss_store_sk#1161 = s_store_sk#666) AND s_county#689 IN (Williamson County,Franklin Parish,Bronx County,Orange County))变成了 ss_store_sk#1161 = s_store_sk#666 而 store.s_county 的s_county#689 IN (Williamson County,Franklin Parish,Bronx County,Orange County) 条件下推到 join之前，目测能做到扫描 store 表Relation的hdfs数据的时候就对数据进行了过滤。
+
+当底层Relation为parquet等支持Predictate PushDown的存储格式时，可以做data skipping则会继续下推。这种情况能直接跳过整个记录或者整个块，可以进一步提高 Job 的性能并且减少了不必要的网络开销。
+
+谓词下推只能作用于deterministic的判断。
 
 #### ConstantFolding 描述
 
 常量累加就是把一些常量累加的条件用累加的结果代替，优化后不需要每次使用这个条件还需要再执行常量相加的操作。
 
-如q73 SQL中，原来语法树里的date_dim.d_year IN (1999, 1999 + 1, 1999 + 2)d_year#335 IN (1999,(1999 + 1),(1999 + 2)))变成了d_year#335 IN (1999,2000,2001))
-没有进行优化前，每一条结果Filter都需要执行一次1991+1和1992+2的CPU操作，然后再提供给d_year进行过滤，如果关联的表数据记录多，即使简单的常量相加也会带来很多的CPU操作。常量算子合并减少了不必要的重复计算量，提升计算速度。
+如q73 SQL中，原来语法树里有date_dim.d_year IN (1999, 1999 + 1, 1999 + 2)的条件，优化前的规则是d_year#335 IN (1999,(1999 + 1),(1999 + 2)))，优化后变成了d_year#335 IN (1999,2000,2001))。
+
+没有进行优化前，每一条结果都需要先执行一次1991+1和1992+2的CPU计算操作，然后再提供给 d_year 表进行过滤。如果关联的表数据记录多，简单的常量相加也会带来很多的CPU操作。
+常量算子合并减少不必要的重复计算量，提升计算速度。
 
 ## 题目二: 架构设计题
 
 你是某互联网公司的大数据平台架构师，请设计一套基于 Lambda 架构的数据平台架构，要求尽可能多的把课程中涉及的组件添加到该架构图中。并描述 Lambda 架构的优缺点，要求不少于 300 字。
+
+
+### Lambda架构与选型
+
+![Lambda架构与选型](images/Lambda架构与选型.png)
+
+除了上图中已经包含的，课程中还介绍了整体的监控与调度系统，如Azkaban，Airflow，元数据管理系统，如Atlas，数据质量系统，如Griffin。有时间再补充到架构图中。
 
 Lambda架构有如下优点。
 
