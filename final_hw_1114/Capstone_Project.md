@@ -38,6 +38,7 @@ https://github.com/apache/spark/tree/master/sql/core/src/test/resources/tpcds
 
 参考文章:
 https://blog.csdn.net/weixin_45468845/article/details/105750062
+
 https://stackoverflow.com/questions/18322102/hadoop-connection-refused-on-port-9000
 
 
@@ -162,7 +163,7 @@ join算子大部分情况需要shuffle，网络走一遍比较耗时，耗时长
 
 ![Lambda架构与选型](images/Lambda架构与选型.png)
 
-除了上图中已经包含的，课程中还介绍了整体的监控与调度系统，如Azkaban，Airflow，元数据管理系统，如Atlas，数据质量系统，如Griffin。Hadoop生态的集群资源调度与管理，如YARN，Kubernetes，保证分布式一致性的服务组件，如Zookeeper。数据湖组件如DeltaLake，Hudi，Iceberg。多账户权限和安全管控系统，如Ranger。这些部分有时间再补充到架构图中。其他数据存储和处理工具，如ElasticSearch, MongDB，TiDB，KuDu，分析工具，如Druid，Impala，各种机器学习和深度学习框架如Tensorflow, PyTorch等，及机器学习平台工具如Zeppelin, Jupyter, Koalas等课程中涉及不多，未加到架构图中。
+除了上图中已经包含的，课程中还介绍了整体的监控与调度系统，如Azkaban，Airflow，元数据管理系统，如Atlas，数据质量系统，如Griffin。Hadoop生态的集群资源调度与管理，如YARN，Kubernetes，保证分布式一致性的服务组件，如Zookeeper。数据湖组件如DeltaLake，Hudi，Iceberg。多账户权限和安全管控系统，如Ranger。这些部分有时间再补充到架构图中。其他数据存储和处理工具，如ElasticSearch, MongDB，TiDB，KuDu。分析工具，如Druid，Impala。各种机器学习和深度学习框架如Tensorflow, PyTorch。机器学习平台工具如Zeppelin, Jupyter, Koalas等课程中涉及不多，未加到架构图中。
 
 Lambda架构批和流有不同的目的，做不同的数据处理，处理的代码一般不同。批处理对于有一定程度的失真和处理规模受限的流处理可以做更好地补充。
 
