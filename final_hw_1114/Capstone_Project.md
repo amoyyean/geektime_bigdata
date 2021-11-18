@@ -162,7 +162,7 @@ join算子大部分情况需要shuffle，网络走一遍比较耗时，耗时长
 
 ![Lambda架构与选型](images/Lambda架构与选型.png)
 
-除了上图中已经包含的，课程中还介绍了整体的监控与调度系统，如Azkaban，Airflow，元数据管理系统，如Atlas，数据质量系统，如Griffin。Hadoop生态的集群资源调度与管理，如YARN，保证分布式一致性的服务组件，如Zookeeper。数据湖组件如DeltaLake，Hudi，Iceberg。这些部分有时间再补充到架构图中。ElasticSearch, MongDB，各种机器学习平台等课程中未介绍，不加到架构图中。
+除了上图中已经包含的，课程中还介绍了整体的监控与调度系统，如Azkaban，Airflow，元数据管理系统，如Atlas，数据质量系统，如Griffin。Hadoop生态的集群资源调度与管理，如YARN，Kubernetes，保证分布式一致性的服务组件，如Zookeeper。数据湖组件如DeltaLake，Hudi，Iceberg。多账户权限和安全管控系统，如Ranger。这些部分有时间再补充到架构图中。其他数据存储和处理工具，如ElasticSearch, MongDB，各种机器学习和深度学习框架如Tensorflow, PyTorch等，及机器学习平台工具如Zeppelin, Jupyter, Koalas等课程中涉及不多，未加到架构图中。
 
 Lambda架构有如下优点。
 
@@ -174,6 +174,9 @@ Lambda架构有如下优点。
 
 3. 实时计算成本可控
 对低延时要求的采用实时计算，其余的采用错峰集中资源的大批量计算，总体成本更容易控制。
+
+4. 可扩展性
+当前实时处理能应对的数据量还无法达到批处理的水平，当数据量增长很快时，批处理通过水平扩展能更好地应对。
 
 Lambda架构有如下缺点。
 
