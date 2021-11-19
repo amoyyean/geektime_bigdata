@@ -247,8 +247,8 @@ Task 的 Map 将结果数据写入到缓存(Map(PartitionedAppendOnlyMap)或者�
 
 2. bypass 运行机制的触发条件
 
-  1) Shuffle Map 任务数小于 spark.shuffle.sort.bypassMergeThreshold（默认为200）；
-  2) 不是聚合类的 Shuffle 算子（比如reduceByKey）。
+    1) Shuffle Map 任务数小于 spark.shuffle.sort.bypassMergeThreshold（默认为200）；
+    2) 不是聚合类的 Shuffle 算子（比如reduceByKey）。
 
 触发后 task 会创建 reduceNum 个临时磁盘文件，并将数据按 key 进行 hash 取模，写入对应的磁盘文件。类似 HashShuffle，先写内存缓冲，写满再溢写到磁盘。最后将所有临时磁盘文件都合并成1个磁盘文件，并创建1个单独的索引文件。该过程的磁盘写机制和没有文件合并的 HashShuffle 一样，区别在最后做磁盘文件的合并。少量的最终磁盘文件和没有文件合并的 HashShuffle 比 Shuffle Read的性能会更好。
 
