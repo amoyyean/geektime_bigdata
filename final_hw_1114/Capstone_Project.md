@@ -229,26 +229,36 @@ Shuffle 的目的是把 Reducer 计算（如累加）需要的数据从分布在
 
 Spark Shuffle 有两种实现，1.2前使用 HashShuffle 算法，1.2之后主要使用 SortShuffle。Spark 在2.x版本后的 Tungsten 引入了新的 Shuffle 机制，如tungsten-sort。
 
-HashShuffle 分为普通机制和合并机制
+- HashShuffle 通过 spark.shuffle.consolidatedFiles 取值的不同可以分为2种。
 
-1. 普通机制
-Write 阶段根据记录的 key 进行 Hash 取模操作(hash(key)% reducerNum)，相同结果的记录写到同一个磁盘文件中。过程是先写入内存缓冲区，再溢写(spill)到磁盘中。
+1. 文件合并未打开
+Write 阶段根据记录的 key 进行 Hash 取模操作(hash(key)% reducerNum)，相同结果的记录写到同一个磁盘文件中。过程是先写入内存缓冲区，再溢写(spill)到磁盘中。这个阶段生成的文件数等于 Map Side 的任务数乘以 Reducer (任务)数。大量的碎片文件会存储到磁盘中，产生影响性能的IO操作。Shuffle Read 阶段通过网络把 Write 生成的中间结果拉取聚合到 Reduce 任务所在的节点，每次只能拉取与 buffer 缓冲区相同大小的数据，在内存中聚合。
 
-2. 合并机制
+2. 文件合并已打开
+每个 CPU Core 有一个逻辑上的 ShuffleFileGroup，每个 Group 生成 reduceNum 个文件。将磁盘小文件的数量降低到 CPU Core 乘以 Reducer (任务)数，但是当 Reducer 端的并行任务数或者数据Partitions过多，CPU Core 乘以 Reducer (任务)数会较大，也会产生大量的小文件。同时会占用大量内存，容易出现 oom。
 
-SortShuffle分为普通机制和bypass机制。
+- SortShuffle 运行机制分为普通运行机制和 bypass 运行机制。
 
-bypass机制条件
+1. 普通运行机制
 
-1) shuffle map task数量小于spark.shuffle.sort.bypassMergeThreshold参数的值。
-2) 不是聚合类的shuffle算子（比如reduceByKey）
+Task 的 Map 将结果数据写入到缓存(Map(PartitionedAppendOnlyMap)或者数组 PartitionedPairBuffer)，默认大小时5M，当内存结构超过一定比例时会申请新内存，内存满了之后会根据 Key 进行排序，然后分批溢写到本地磁盘。溢写过程只会产生2个文件，1个是数据文件，1个是索引文件。生成的磁盘小文件个数等于 Map Side 的任务数乘以2。
+
+这种机制需要排序，会影响性能。中间还是会产生比较多的小文件。不过最终文件变少了，而且有索引和排序，可以提高 Shuffle Read 的性能。
+
+2. bypass 运行机制的触发条件
+
+1) Shuffle Map 任务数小于 spark.shuffle.sort.bypassMergeThreshold（默认为200）；
+2) 不是聚合类的 Shuffle 算子（比如reduceByKey）。
+
+触发后 task 会创建 reduceNum 个临时磁盘文件，并将数据按 key 进行 hash 取模，写入对应的磁盘文件。类似 HashShuffle，先写内存缓冲，写满再溢写到磁盘。最后将所有临时磁盘文件都合并成1个磁盘文件，并创建1个单独的索引文件。该过程的磁盘写机制和没有文件合并的 HashShuffle 一样，区别在最后做磁盘文件的合并。少量的最终磁盘文件和没有文件合并的 HashShuffle 比 Shuffle Read的性能会更好。
+
+相比于普通机制的 SortShuffle ，这个里面节省了排序。
+
+SortShuffle 运行机制下也可以打开文件合并来减少中间过程的小文件数。
 
 在Spark 1.2以前，默认的shuffle计算引擎是HashShuffleManager，在Spark 1.2以后的版本中，默认的ShuffleManager改成了SortShuffleManager。
 
-SortShuffleManager相较于HashShuffleManager来说，有了一定的改进。
-
-Shuffle 的性能高低直接影响了整个程序的性能和吞吐量。
-
+Shuffle会将数据从内存中移出，会消耗内存和磁盘IO。通过网络传输会消耗网络IO。做序列化和反序列化，数据压缩会消耗CPU。一个数据块可能会有多次磁盘的IO读写。这些都会影响性能。通过部分聚合函数，比如 reduceByKey 可以减少数据 Shuffle 的量。
 
 ---
 
