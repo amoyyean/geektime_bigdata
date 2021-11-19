@@ -210,13 +210,29 @@ Lambda架构批和流有不同的目的，做不同的数据处理，处理的�
 
 #### Spark Shuffle 的工作原理
 
-Shuffle 过程是将 Map 端获得的数据使用分区器进行划分，并将数据发送给对应的 Reducer 的过程。
+Spark Shuffle 只发生在2个 Stage 之间，数据会在 Partition 内部按照 Key 重新分布，有相同 Key 的数据记录会放到一起。Spark 里面引入 Stage 就是为了处理 Shuffle 造成的网络交互 。
 
-Shuffle作为处理连接map端和reduce端的枢纽，其shuffle的性能高低直接影响了整个程序的性能和吞吐量。map端为shuffle Write，reduce端为shuffle read。spark的shuffle分为两种实现，分别为HashShuffle和SortShuffle。
+Shuffle 过程把 Map 的输出文件使用 Partitioner (分区器)在本地进行划分，并将数据发送给对应的 Reducer 的过程。Shuffle 过程的中间结果在 Map 操作后会落到本地磁盘。输出到 Reducer 的数据内存有可能放不下，会生成相应的Iterator遍历数据。相同的 Key 会存储在同一个 Reducer 里，有些算子还会引发 Reducer 中的 Sort(Value) by Key。
 
-HashShuffle分为普通机制和合并机制
+Shuffle 的目的是把 Reducer 计算（如累加）需要的数据从分布在不同机器变成集中在一起。
+
+**Shuffle分为 Shuffle Write 阶段(Map Side)和 Shuffle Read 阶段(Reduce Side)。**
+
+- Write 阶段(Map Side)的任务个数是根据 RDD 的分区数决定的。
+  - 假设从 HDFS 中读取数据，那么 RDD 分区个数由该数据集的 block 数决定，也就是一个 split 对应生成 RDD 的一个 partition。
+- Read 阶段(Reduce Side)的任务个数是通过配置 spark.sql.shuffle.partitions 决定的。
+
+**Shuffle 中间的数据交互**
+
+- Write 阶段(Map Side)会将状态以及 Shuffle 文件的位置等信息封装到 MapStatue 对象中，然后发送给 Driver。
+- Read阶段(Reduce Side)会从 Driver 拉取 MapStatue，解析后开始执行 Reduce 操作。
+
+Spark Shuffle 有两种实现，1.2前使用 HashShuffle 算法，1.2之后主要使用 SortShuffle。Spark 在2.x版本后的 Tungsten 引入了新的 Shuffle 机制，如tungsten-sort。
+
+HashShuffle 分为普通机制和合并机制
 
 1. 普通机制
+Write 阶段根据记录的 key 进行 Hash 取模操作(hash(key)% reducerNum)，相同结果的记录写到同一个磁盘文件中。过程是先写入内存缓冲区，再溢写(spill)到磁盘中。
 
 2. 合并机制
 
@@ -231,14 +247,17 @@ bypass机制条件
 
 SortShuffleManager相较于HashShuffleManager来说，有了一定的改进。
 
+Shuffle 的性能高低直接影响了整个程序的性能和吞吐量。
+
+
 ---
 
 参考文章：
 1. [大数据采集和抽取怎么做？](https://zhuanlan.zhihu.com/p/142666447)
 2. 0829直播回放：逻辑计划树和优化器、物理计划树和策略器在02:00:00左右有演示log中看优化规则的应用。02:20:00～02:30:00有一些回答同学问题时相关规则应用的演示。
 
-毕业设计项目还需要补充一些回答，这几天实在来不及了。之后有时间再补充，不好意思。
+毕业设计项目刚完成时的回答内容有所欠缺，逐步增添了一些内容。
 
-最近公司的事要多一些，有几次中午和晚上的团队活动要参加，业余时间少了不少。孩子比较爱玩好动，被老师说习惯不好，平时需要不少的陪伴时间。家人在医院工作倒班和请长假探亲，陪伴孩子游戏和学习更多依靠我。出差之余最近几周的时间有些紧，我尽量把课程都听下来了。
+前2周公司的事要多一些，有几次中午和晚上的团队活动要参加，业余时间变少。孩子爱玩好动，有时被老师说习惯不好，需要多一些陪伴引导。家人在医院工作倒班和请长假探亲，陪伴孩子游戏和学习更多依靠我。上周出差之余时间更少一些，我到本周才把之前有时间冲突的课程都听了1遍。
 
 我的本职工作不是大数据，也不是做开发的工程师。我在数据挖掘领域要学和专研的东西也很多，这门课收获不小，认识这么一些同学，老师和助教很高兴。学完之后我要再回到自己负责的领域继续学习。
