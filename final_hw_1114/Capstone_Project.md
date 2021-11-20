@@ -221,7 +221,9 @@ Shuffle 的目的是把 Reducer 计算（如累加）需要的数据从分布在
 - Write 阶段(Map Side)会将状态以及 Shuffle 文件的位置等信息封装到 MapStatue 对象中，然后发送给 Driver。
 - Read阶段(Reduce Side)会从 Driver 拉取 MapStatue，解析后开始执行 Reduce 操作。
 
-Spark Shuffle 有两种实现，1.2前使用 HashShuffle 算法，1.2之后主要使用 SortShuffle。Spark 在2.x版本后的 Tungsten 引入了新的 Shuffle 机制，如 Tungsten-Sort。
+Spark Shuffle 有两种实现，1.2前使用 HashShuffle 算法，1.2之后主要使用 SortShuffle。
+
+Spark 在2.x版本后的 Tungsten 引入了新的 Shuffle 机制，如 Tungsten-Sort。Tungsten-Sort 机制下 在 Shuffle Write阶段结束前，要 Shuffle 的数据已经序列化，之后都在序列化的数据上操作，因此使用 Tungsten-Sort 的其中一条限制就是完全没有聚合操作。Tungsten-Sort 机制中，与 SortShuffle 类似，也有数据缓存和溢写。但是不再通过像 PartitionedPairBuffer 等高级数据结构，而由程序自己完成，并且直接操作内存空间。完成排序工作的则是 ShuffleInMemorySorter。具体的内存管理机制和排序和原来的 SortShuffle 有一些区别，我的理解性能上都有所提升，具体细节不展开了。
 
 **HashShuffle 通过 spark.shuffle.consolidatedFiles 取值的不同可以分为2种。**
 
